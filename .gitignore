@@ -3,3 +3,5 @@ __pycache__/
 .vscode/
 saved_html/
 configs.json
+.idea/
+proxy/
