@@ -20,7 +20,7 @@ class MySpider:
     自己实现的用来构建自动化搜索引擎的爬取部分的爬虫类
     """
 
-    def __init__(self, config_filepath):
+    def __init__(self, config_filepath, output_queue, ):
         self.__config_filepath__ = config_filepath
         self.__file_name_count__ = 0
         self.__file_name_count_lock__ = Lock()
@@ -29,6 +29,7 @@ class MySpider:
         self.__not_access_queue__ = queue.PriorityQueue()
         self.__accessed_set__ = set()
         self.__cannot_access_set__ = set()
+        self.__output_queue__ = output_queue
         self.__headers__ = http_header = {
             'Connection': 'keep-alive',
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
@@ -268,13 +269,16 @@ class MySpider:
                     file.write(url_tuple[1].encode() + b'\n')
                     file.write(writed_page)
 
+                self.__output_queue__.put(file_path)
                 self.__accessed_set__.add(url_tuple[1])
                 print(url_tuple[1], str(url_tuple[0]), 
                 str(self.__file_name_count__) + '/' + str(self.__config__['number_of_pages_to_crawl']))
 
                 # 爬取完成判断
                 if self.__file_name_count__ == self.__config__['number_of_pages_to_crawl']:
-                    raise CrawlCompletedException()
+                    # raise CrawlCompletedException()
+                    self.__output_queue__.put('mission_complete')
+                    return
             # 若捕获到失败次数过多异常则将此请求的url放入不可访问链接集中
             # 并且取消本次请求
             except FaildTooManyTimesException:
