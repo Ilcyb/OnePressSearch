@@ -9,8 +9,11 @@ from .cx_extractor import CxExtractor
 from .my_exception import CantDecodeException, CleanFailedException
 from os import remove
 
-
 class DataCleaner(object):
+    """
+    数据清理类
+    将html文件中的无用信息清理掉，留下有用的标题、关键词、正文
+    """
     def __init__(self, input_queue, output_queue):
         self.__input_queue__ = input_queue
         self.__output_queue__ = output_queue
@@ -19,11 +22,12 @@ class DataCleaner(object):
     def __clean__(self, path):
         try:
             url, html_content = self.__extractor__.readHtml(path)
-            keywords = self.__preprocess__(html_content) or ' '
+            title, keywords = self.__preprocess__(html_content) or ('', '')
             content = self.__extractor__.filter_tags(html_content)
             text = self.__extractor__.getText(content)
             with open(path, 'wb') as re_write:
                 re_write.write(url.encode())
+                re_write.write(title.encode() + b'\n')
                 re_write.write(text.encode())
                 re_write.write(keywords.encode())
             return path
@@ -52,9 +56,9 @@ class DataCleaner(object):
         except Exception:
             pass
         try:
-            return (' ' + keywords or ' ') + (' ' + description or ' ') + (' ' + title or ' ' + ' ')
+            return ((title or '') ,(' ' + keywords or ' ') + (' ' + description or ' '))
         except Exception:
-            return 
+            return ('', '')
 
     def work(self):
         while True:
@@ -70,4 +74,3 @@ class DataCleaner(object):
             finally:
                 self.__input_queue__.task_done()
         return
-    
