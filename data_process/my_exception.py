@@ -4,3 +4,11 @@ class CantDecodeException(Exception):
 
 class CleanFailedException(Exception):
     pass
+
+
+class RedisConnFailedException(Exception):
+    pass
+
+
+class NoTitleOrNoUrlException(Exception):
+    pass

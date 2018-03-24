@@ -15,6 +15,7 @@ from random import randint
 from bs4 import BeautifulSoup
 
 
+# TODO: 加上爬取间歇时间
 class MySpider:
     """
     自己实现的用来构建自动化搜索引擎的爬取部分的爬虫类
@@ -124,6 +125,19 @@ class MySpider:
                 raise NotADirectoryError
 
             # TODO:数据库参数读取
+            redis_confis = self.__config_json__.get('REDIS', None)
+            if redis_confis:
+                config['redis_host'] = redis_confis.get('HOST', 'localhost')
+                config['redis_port'] = redis_confis.get('PORT', '6379')
+                config['redis_db'] = redis_confis.get('db', 0)
+                config['redis_pwd'] = redis_confis.get('PASSWORD', None)
+            else:
+                config['redis_host'] = 'localhost'
+                config['redis_port'] = 6379
+                config['redis_db'] = 0
+
+            config['stop_words_path'] = self.__config_json__.get('STOP_WORDS_PATH', None)
+
 
             return config
 
