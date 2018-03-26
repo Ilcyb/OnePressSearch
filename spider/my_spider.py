@@ -13,6 +13,7 @@ from .my_exception import FaildTooManyTimesException, CrawlCompletedException
 from .utils import my_urljoin, get_func_name
 from random import randint
 from bs4 import BeautifulSoup
+from progress.bar import ChargingBar
 
 
 # TODO: 加上爬取间歇时间
@@ -42,6 +43,7 @@ class MySpider:
         self.__url_compile_re__ = re.compile(r'^https?:/{2}\w.+$')
         self.__request_failed_nums__ = 2
         self.__allow_domain_regex_list__ = list()
+        self.__progress_bar__ = ChargingBar('爬取网页', max=self.__config__['number_of_pages_to_crawl'])
 
     def __read_config_json_from_file__(self):
         try:
@@ -285,13 +287,15 @@ class MySpider:
 
                 self.__output_queue__.put(file_path)
                 self.__accessed_set__.add(url_tuple[1])
-                print(url_tuple[1], str(url_tuple[0]), 
-                str(self.__file_name_count__) + '/' + str(self.__config__['number_of_pages_to_crawl']))
+                # print(url_tuple[1], str(url_tuple[0]), 
+                # str(self.__file_name_count__) + '/' + str(self.__config__['number_of_pages_to_crawl']))
+                self.__progress_bar__.next()
 
                 # 爬取完成判断
                 if self.__file_name_count__ == self.__config__['number_of_pages_to_crawl']:
                     # raise CrawlCompletedException()
                     self.__output_queue__.put('mission_complete')
+                    self.__progress_bar__.finish()
                     return
             # 若捕获到失败次数过多异常则将此请求的url放入不可访问链接集中
             # 并且取消本次请求

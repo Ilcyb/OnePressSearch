@@ -35,7 +35,7 @@ class TFIDF(object):
             self._stop_words_set.add(stw_file.readline().strip())
 
     def _participle(self, str):
-        seg_list = jieba.cut(str, cut_all=True)
+        seg_list = jieba.lcut_for_search(str)
         result = list()
         for word in seg_list:
             if word not in self._stop_words_set:
