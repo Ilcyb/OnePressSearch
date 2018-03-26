@@ -1,3 +1,4 @@
+# coding: UTF-8
 from spider import MySpider
 from spider import CrawlCompletedException
 from data_process import DataCleaner
