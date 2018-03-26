@@ -14,7 +14,7 @@ from .my_exception import FaildTooManyTimesException, CrawlCompletedException
 from .utils import my_urljoin, get_func_name
 from random import randint
 from bs4 import BeautifulSoup
-from progress.bar import ChargingBar
+from eprogress import LineProgress
 
 
 # TODO: 加上爬取间歇时间
@@ -23,7 +23,7 @@ class MySpider:
     自己实现的用来构建自动化搜索引擎的爬取部分的爬虫类
     """
 
-    def __init__(self, config_filepath, output_queue, ):
+    def __init__(self, config_filepath, output_queue, complete_queue):
         self.__config_filepath__ = config_filepath
         self.__file_name_count__ = 0
         self.__file_name_count_lock__ = Lock()
@@ -44,7 +44,8 @@ class MySpider:
         self.__url_compile_re__ = re.compile(r'^https?:/{2}\w.+$')
         self.__request_failed_nums__ = 2
         self.__allow_domain_regex_list__ = list()
-        self.__progress_bar__ = ChargingBar('爬取网页', max=self.__config__['number_of_pages_to_crawl'])
+        self.__progressbar__ = LineProgress(title='爬取页面', total=self.__config__['number_of_pages_to_crawl'], width=80)
+        self.__complete_queue__ = complete_queue
 
     def __read_config_json_from_file__(self):
         try:
@@ -225,7 +226,7 @@ class MySpider:
 
     # 通用页面抓取器
     def __page__getter__(self, priority, page, url):
-        doc = BeautifulSoup(page)
+        doc = BeautifulSoup(page, 'html.parser')
         url = MySpider.get_hostname(url)
         for i in doc.find_all('a'):
             try:
@@ -290,13 +291,14 @@ class MySpider:
                 self.__accessed_set__.add(url_tuple[1])
                 # print(url_tuple[1], str(url_tuple[0]), 
                 # str(self.__file_name_count__) + '/' + str(self.__config__['number_of_pages_to_crawl']))
-                self.__progress_bar__.next()
+                self.__progressbar__.update(self.__file_name_count__)
 
                 # 爬取完成判断
                 if self.__file_name_count__ == self.__config__['number_of_pages_to_crawl']:
                     # raise CrawlCompletedException()
                     self.__output_queue__.put('mission_complete')
-                    self.__progress_bar__.finish()
+                    self.__progressbar__.update(self.__file_name_count__)
+                    self.__complete_queue__.put('complete')
                     return
             # 若捕获到失败次数过多异常则将此请求的url放入不可访问链接集中
             # 并且取消本次请求

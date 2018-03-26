@@ -29,6 +29,7 @@ class TFIDF(object):
         self._input_queue = input_queue
         self._redis_conn = redis_conn
         self._stopWordList()
+        jieba.setLogLevel(30)
 
     def _stopWordList(self, stop_words_path=os.path.join(os.path.dirname(__file__), 'stop_words.txt')):
         self._stop_words_set = set()
@@ -101,7 +102,6 @@ class TFIDF(object):
                 self._redis_conn.lset(the_word_tf_list_name, index, the_tf_idf)
 
     def start(self):
-        i = 0
         while True:
             try:
                 avilable_path = self._input_queue.get()
@@ -109,8 +109,6 @@ class TFIDF(object):
                     break
                 url, title, content = self._read_content(avilable_path)
                 self._write_info_2_redis(*self._get_word_count_dict(self._participle(content)), url, title)
-                i += 1
-                print('write to redis', i)
             except FileNotFoundError:
                 pass
             except CantDecodeException:
@@ -125,7 +123,6 @@ class TFIDF(object):
                 self._input_queue.task_done()
         try:
             self._compute_tfidf()
-            print('compute all tfidf')
         except redis.exceptions.ConnectionError:
             print('与redis的连接中断')
             return

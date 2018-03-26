@@ -5,6 +5,8 @@ from data_process import DataCleaner
 from data_process.tf_idf import _Redis, TFIDF
 from threading import Thread
 from data_process.my_exception import RedisConnFailedException
+from eprogress import LineProgress, CircleProgress, MultiProgressManager
+from time import sleep
 
 import queue
 import sys
@@ -14,8 +16,9 @@ import sys
 if  __name__ == '__main__':
     crawled_queue = queue.Queue()
     cleaned_queue = queue.Queue()
-    mySpider = MySpider(sys.argv[1], crawled_queue)
-    cleaner = DataCleaner(crawled_queue, cleaned_queue)
+    complete_single_queue = queue.Queue()
+    mySpider = MySpider(sys.argv[1], crawled_queue, complete_single_queue)
+    cleaner = DataCleaner(crawled_queue, cleaned_queue, complete_single_queue)
 
     try:
         redis = _Redis(mySpider.config['redis_host'], mySpider.config['redis_port'],
@@ -34,10 +37,10 @@ if  __name__ == '__main__':
     tfidf_thread.start()
 
     spider_thread.join()
-    print('页面爬取完成')
+    print('\n爬取完成，正在清洗数据')
     cleaner_thread.join()
-    print('页面清理完成')
+    print('正在计算TFIDF值')
     tfidf_thread.join()
-    print('TFIDF计算完成')
+    # print('TFIDF计算完成')
 
     print('程序结束')

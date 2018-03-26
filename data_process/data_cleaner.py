@@ -14,7 +14,7 @@ class DataCleaner(object):
     数据清理类
     将html文件中的无用信息清理掉，留下有用的标题、关键词、正文
     """
-    def __init__(self, input_queue, output_queue):
+    def __init__(self, input_queue, output_queue, complete_queue):
         self.__input_queue__ = input_queue
         self.__output_queue__ = output_queue
         self.__extractor__ = CxExtractor()
@@ -39,7 +39,7 @@ class DataCleaner(object):
             raise CleanFailedException()
 
     def __preprocess__(self, content):
-        doc = BeautifulSoup(content)
+        doc = BeautifulSoup(content, 'html.parser')
         keywords = str()
         description = str()
         title = str()
@@ -68,7 +68,6 @@ class DataCleaner(object):
                     self.__output_queue__.put('mission_complete')
                     break
                 avilable_path = self.__clean__(avilable_path)
-                print('clean done:', avilable_path)
                 self.__output_queue__.put(avilable_path)
             except CleanFailedException:
                 remove(avilable_path)
