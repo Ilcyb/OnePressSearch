@@ -65,6 +65,7 @@ class DataCleaner(object):
             try:
                 avilable_path = self.__input_queue__.get()
                 if avilable_path == 'mission_complete':
+                    self.__output_queue__.put('mission_complete')
                     break
                 avilable_path = self.__clean__(avilable_path)
                 print('clean done:', avilable_path)
