@@ -18,3 +18,7 @@ class CrawlCompletedException(Exception):
     爬取次数达到了预设的次数
     """
     pass
+
+
+class RedisCanNotWork(Exception):
+    pass

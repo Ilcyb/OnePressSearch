@@ -5,16 +5,16 @@ import re
 import requests
 import queue
 import threading
+import redis
 from concurrent.futures import ThreadPoolExecutor
 from multiprocessing import cpu_count
 from threading import Lock
 
 from .user_agent import MY_USER_AGENT
-from .my_exception import FaildTooManyTimesException, CrawlCompletedException
-from .utils import my_urljoin, get_func_name
+from .my_exception import FaildTooManyTimesException, CrawlCompletedException, RedisCanNotWork
+from .utils import my_urljoin, get_func_name, get_sort_set_from_redis, rem_sort_set_from_redis, put_element_into_sort_set, LineProgress
 from random import randint
 from bs4 import BeautifulSoup
-from eprogress import LineProgress
 
 
 # TODO: 加上爬取间歇时间
@@ -29,7 +29,11 @@ class MySpider:
         self.__file_name_count_lock__ = Lock()
         self.__config_json__ = self.__read_config_json_from_file__()
         self.__config__ = self.__read_config_from_file__()
-        self.__not_access_queue__ = queue.PriorityQueue()
+        self.__max_queue_size__ = 1000
+        self.__not_access_queue__ = queue.PriorityQueue(maxsize=self.__max_queue_size__)
+        self.__not_access_queue_name__ = 'naqn'
+        self.__queue_full_flag__ = False
+        self.__queue_harf_flag__ = False
         self.__accessed_set__ = set()
         self.__cannot_access_set__ = set()
         self.__output_queue__ = output_queue
@@ -46,6 +50,9 @@ class MySpider:
         self.__allow_domain_regex_list__ = list()
         self.__progressbar__ = LineProgress(title='爬取页面', total=self.__config__['number_of_pages_to_crawl'], width=80)
         self.__complete_queue__ = complete_queue
+
+    def get_redis_conn(self, redis_conn):
+        self.__redis_conn__ = redis_conn
 
     def __read_config_json_from_file__(self):
         try:
@@ -238,7 +245,12 @@ class MySpider:
 
                 standard_url = self.__url_standardizator__(i['href'], url)
                 if self.__url_analyzer__(standard_url):
-                    self.__not_access_queue__.put((priority, standard_url))
+                    if self.__queue_full_flag__:
+                        put_element_into_sort_set(self.__redis_conn__, self.__not_access_queue_name__, standard_url, priority)
+                    else:
+                        self.__not_access_queue__.put((priority, standard_url), block=False)
+            except queue.Full:
+                self.__queue_full_flag__ = True
             except KeyError:
                 pass
             except Exception as e:
@@ -267,7 +279,9 @@ class MySpider:
         while True:
             try:
                 url_tuple = self.__not_access_queue__.get()
-
+                if self.__queue_full_flag__ and self.__not_access_queue__.qsize() < self.__max_queue_size__ / 2:
+                    get_sort_set_from_redis(self.__redis_conn__, self.__not_access_queue_name__,
+                                            int(self.__max_queue_size__ * 0.3), self.__not_access_queue__)
                 # 再次验证，以免重复爬取已爬取过的页面
                 if url_tuple[1] in self.__accessed_set__:
                     continue
@@ -297,7 +311,7 @@ class MySpider:
                 if self.__file_name_count__ == self.__config__['number_of_pages_to_crawl']:
                     # raise CrawlCompletedException()
                     self.__output_queue__.put('mission_complete')
-                    self.__progressbar__.update(self.__file_name_count__)
+                    self.__progressbar__.finish()
                     self.__complete_queue__.put('complete')
                     return
             # 若捕获到失败次数过多异常则将此请求的url放入不可访问链接集中
@@ -305,3 +319,9 @@ class MySpider:
             except FaildTooManyTimesException:
                 self.__cannot_access_set__.add(url_tuple[1])
                 future.cancel()
+            except redis.exceptions.ConnectionError:
+                print('与Redis的连接中断，程序无法继续运行')
+                exit()
+            except RedisCanNotWork as e:
+                print('Redis无法正常工作，程序无法继续运行', e)
+                exit()

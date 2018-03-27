@@ -11,7 +11,8 @@ from time import sleep
 import queue
 import sys
 
-
+# TODO: 改善内存使用效率
+# TODO: 意外退出时保留进度
 
 if  __name__ == '__main__':
     crawled_queue = queue.Queue()
@@ -26,6 +27,8 @@ if  __name__ == '__main__':
     except RedisConnFailedException:
         print('无法连接Redis服务器，请确保Redis服务已经开启且配置填写正确')
         exit()
+    
+    mySpider.get_redis_conn(redis.getRedisConn())
     tfidf = TFIDF(cleaned_queue, redis.getRedisConn())
 
     spider_thread = Thread(target=mySpider.start)

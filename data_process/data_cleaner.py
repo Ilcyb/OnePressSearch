@@ -32,10 +32,8 @@ class DataCleaner(object):
                 re_write.write(keywords.encode())
             return path
         except FileNotFoundError as e:
-            print(e)
             raise CleanFailedException()
         except CantDecodeException as e:
-            print(e)
             raise CleanFailedException()
 
     def __preprocess__(self, content):
