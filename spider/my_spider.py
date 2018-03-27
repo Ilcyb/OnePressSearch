@@ -1,4 +1,5 @@
 # coding: UTF-8
+import gc
 import json
 import os
 import re
@@ -29,7 +30,7 @@ class MySpider:
         self.__file_name_count_lock__ = Lock()
         self.__config_json__ = self.__read_config_json_from_file__()
         self.__config__ = self.__read_config_from_file__()
-        self.__max_queue_size__ = 1000
+        self.__max_queue_size__ = 1500
         self.__not_access_queue__ = queue.PriorityQueue(maxsize=self.__max_queue_size__)
         self.__not_access_queue_name__ = 'naqn'
         self.__queue_full_flag__ = False
@@ -207,7 +208,10 @@ class MySpider:
             self.__breadth_first_getter__(priority, req.text, req.request.url)
         elif self.__config__['is_depth_first']:
             self.__depth_first_getter__(priority, req.text, req.request.url)
-        return req.content
+
+        content = req.content
+        del url, priority, timeout, user_agent, req
+        return content
 
     @staticmethod
     def get_hostname(url):
@@ -256,6 +260,7 @@ class MySpider:
             except Exception as e:
                 # TODO:找出可能会发生的异常
                 print(get_func_name(), ':', e)
+        del doc, priority, page, url
 
     # 深度优先页面抓取器
     def __depth_first_getter__(self, priority, page, url):
@@ -282,6 +287,7 @@ class MySpider:
                 if self.__queue_full_flag__ and self.__not_access_queue__.qsize() < self.__max_queue_size__ / 2:
                     get_sort_set_from_redis(self.__redis_conn__, self.__not_access_queue_name__,
                                             int(self.__max_queue_size__ * 0.3), self.__not_access_queue__)
+                    gc.collect()
                 # 再次验证，以免重复爬取已爬取过的页面
                 if url_tuple[1] in self.__accessed_set__:
                     continue
@@ -325,3 +331,5 @@ class MySpider:
             except RedisCanNotWork as e:
                 print('Redis无法正常工作，程序无法继续运行', e)
                 exit()
+            finally:
+                del url_tuple
