@@ -3,8 +3,12 @@ import redis
 import abc
 import re
 import threading
+import os
+import json
 
 from .my_exception import RedisCanNotWork
+from data_process.tf_idf import _Redis
+from time import sleep
 
 
 def my_urljoin(first_url, second_url):
@@ -104,3 +108,116 @@ class LineProgress(ProgressBar):
 
     def finish(self):
         self.update(self.total)
+
+
+def get_progress_file_path():
+    return os.path.join(os.path.dirname(__file__), '.session')
+
+def save_progress(progress_file, crawled_queue, cleaned_queue, 
+    complete_single_queue, spider, redis_conf, **kwargs):
+    try:
+        redis_conn = _Redis(host=kwargs['redis_host'], port=kwargs['redis_port'],
+         db=kwargs['redis_db'], password=kwargs['redis_pwd']).getRedisConn()
+
+        crawled_queue_list = list(crawled_queue.queue)
+        cleaned_queue_list = list(cleaned_queue.queue)
+        complete_single_queue_list = list(complete_single_queue.queue)
+        spider_progree = spider.__save_attr__()
+
+        # 清除上次保存的进度
+        redis_conn.flushdb()
+
+        for key in locals():
+            if key in ['crawled_queue_list', 'cleaned_queue_list', 'complete_single_queue_list']:
+                for value in locals()[key]:
+                    redis_conn.rpush(key, value)
+        
+        for k, v in spider_progree.items():
+            redis_conn.rpush('spider_attr', k)
+            if k in ['__not_access_queue__', '__accessed_set__', '__cannot_access_set__']:
+                for item in v:
+                    redis_conn.rpush(k, item)
+            elif k == '__config__':
+                for config, config_value in v.items():
+                    redis_conn.hset('spider_configs', config, config_value)
+            else:
+                redis_conn.set(k, v)
+
+        for conf in redis_conf:
+            redis_conn.rpush('redis_conf', conf)
+        
+        progress_json = {
+            'progress': True,
+            'redis_host': kwargs['redis_host'],
+            'redis_port': kwargs['redis_port'],
+            'redis_db': kwargs['redis_db'],
+            'redis_pwd': kwargs['redis_pwd']
+        }
+
+        with open(progress_file, 'w', encoding='utf-8') as save_session_file:
+            json.dump(progress_json, save_session_file)
+        
+    except redis.exceptions.ConnectionError:
+        print('无法连接进度存储数据库，进度存储失败')
+    except Exception as e:
+        print('发生了未处理的错误，无法保存程序进度', e)
+
+
+def load_progress(progress_file, crawled_queue, cleaned_queue, complete_single_queue, spider, tfidf):
+    try:
+        with open(progress_file, 'r') as load_session_file:
+            progress_json = json.load(load_session_file)
+            
+        redis_conn = _Redis(host=progress_json['redis_host'], port=progress_json['redis_port'],
+         db=progress_json['redis_db'], password=progress_json['redis_pwd']).getRedisConn()
+        
+        for redis_list in ['crawled_queue_list', 'cleaned_queue_list', 'complete_single_queue_list']:
+            all_item_list = redis_conn.lrange(redis_list, 0, -1)
+            for key in locals():
+                if redis_list[:-5] == key:
+                    current_queue = locals()[key]
+                    for item in all_item_list:
+                        current_queue.put(item.decode()) # redis返回的数据都是byte类型的，需要decode
+        
+        spider_attr_dict = dict()
+        for attr in redis_conn.lrange('spider_attr', 0, -1):
+            attr = attr.decode()
+            if attr in ['__not_access_queue__', '__accessed_set__', '__cannot_access_set__']:
+                spider_attr_dict[attr] = redis_conn.lrange(attr, 0, -1)
+            elif attr == '__config__':
+                spider_attr_dict[attr] = redis_conn.hgetall('spider_configs')
+            else:
+                spider_attr_dict[attr] = redis_conn.get(attr) # spider的属性的decode交给spider.__load_attr__自己去做
+        spider.__load_attr__(spider_attr_dict)
+
+        redis_conf = [conf.decode() for conf in redis_conn.lrange('redis_conf', 0, -1)]
+        old_redis = _Redis(redis_conf[0], int(redis_conf[1]), 
+                int(redis_conf[2]), None if redis_conf[3] == 'None' else redis_conf[3])
+        spider.set_redis_conn(old_redis.getRedisConn())
+        tfidf.set_redis_conn(old_redis.getRedisConn())
+        return old_redis
+        
+    except redis.exceptions.ConnectionError:
+        print('无法连接进度存储数据库，进度加载失败')
+    except Exception as e:
+        print('发生了未处理的错误，无法加载程序进度', e)
+
+def if_need_load_progress(progress_file):
+    try:
+        with open(progress_file, 'r', encoding='utf-8') as f:
+            progress_json = json.load(f)
+        if progress_json.get('progress') == True:
+            return True
+        else:
+            return False
+    except FileNotFoundError:
+        return False
+    except KeyError:
+        return False
+
+def backup(minute, progress_file, crawled_queue, cleaned_queue, 
+    complete_single_queue, spider, redis_conf,**kwargs):
+    while True:
+        sleep(minute * 60)
+        save_progress(progress_file, crawled_queue, cleaned_queue,
+        complete_single_queue, spider, redis_conf, **kwargs)

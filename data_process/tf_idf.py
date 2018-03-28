@@ -10,6 +10,7 @@ from .my_exception import RedisConnFailedException, CantDecodeException, NoTitle
 class _Redis(object):
 
     def __init__(self, host, port, db, password=None):
+        self._host, self._port, self._db, self._password = host, port, db, password
         if password:
             self._conn = redis.Redis(host=host, port=port, db=db, password=password)
         else:
@@ -22,14 +23,19 @@ class _Redis(object):
     def getRedisConn(self):
         return self._conn
 
+    def getRedisConf(self):
+        return [self._host, self._port, self._db, self._password]
+
 
 class TFIDF(object):
 
-    def __init__(self, input_queue, redis_conn):
+    def __init__(self, input_queue):
         self._input_queue = input_queue
-        self._redis_conn = redis_conn
         self._stopWordList()
         jieba.setLogLevel(30)
+
+    def set_redis_conn(self, redis_conn):
+        self._redis_conn = redis_conn
 
     def _stopWordList(self, stop_words_path=os.path.join(os.path.dirname(__file__), 'stop_words.txt')):
         self._stop_words_set = set()

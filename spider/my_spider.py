@@ -11,9 +11,9 @@ from concurrent.futures import ThreadPoolExecutor
 from multiprocessing import cpu_count
 from threading import Lock
 
-from .user_agent import MY_USER_AGENT
-from .my_exception import FaildTooManyTimesException, CrawlCompletedException, RedisCanNotWork
-from .utils import my_urljoin, get_func_name, get_sort_set_from_redis, rem_sort_set_from_redis, put_element_into_sort_set, LineProgress
+from spider.user_agent import MY_USER_AGENT
+from spider.my_exception import FaildTooManyTimesException, CrawlCompletedException, RedisCanNotWork
+from spider.utils import my_urljoin, get_func_name, get_sort_set_from_redis, rem_sort_set_from_redis, put_element_into_sort_set, LineProgress
 from random import randint
 from bs4 import BeautifulSoup
 
@@ -52,8 +52,44 @@ class MySpider:
         self.__progressbar__ = LineProgress(title='爬取页面', total=self.__config__['number_of_pages_to_crawl'], width=80)
         self.__complete_queue__ = complete_queue
 
-    def get_redis_conn(self, redis_conn):
+    def __save_attr__(self):
+        return dict(__file_name_count__=self.__file_name_count__,
+        __config__=self.__config__,__max_queue_size__=self.__max_queue_size__,__not_access_queue__=list(self.__not_access_queue__.queue),
+        __not_access_queue_name__=self.__not_access_queue_name__,__queue_full_flag__=self.__queue_full_flag__,
+        __queue_harf_flag__=self.__queue_harf_flag__,__accessed_set__=self.__accessed_set__,__cannot_access_set__=self.__cannot_access_set__)
+
+    def __load_attr__(self, attr_dict):
+        for attr, value in attr_dict:
+            if attr == '__not_access_queue__':
+                value = [i.decode() for i in value]
+                for item in value:
+                    item = item.strip('()').split(',')
+                    priority, url = int(item[0]), item[1].strip('\'')
+                    self.__not_access_queue__.put((priority, url))
+            elif attr in ['__accessed_set__', '__cannot_access_set__']:
+                selfattr = getattr(self, attr)
+                for item in value:
+                    selfattr.add(item.decode())
+            elif attr == '__config__':
+                for config_name, config_value in value.items():
+                    config_name = config_name.decode()
+                    config_value = config_value.decode()
+                    self.__config__[config_name] = config_value
+            elif attr in ['__file_name_count__', '__max_queue_size__']:
+                setattr(self, attr, int(value))
+            elif attr in ['__queue_full_flag__', ' __queue_harf_flag__']:
+                if value.decode() == 'True':
+                    setattr(self, attr, True)
+                elif value.decode() == 'False':
+                    setattr(self, attr, False)
+            else:
+                setattr(self, attr, value.decode())
+
+    def set_redis_conn(self, redis_conn):
         self.__redis_conn__ = redis_conn
+
+    def get_redis_conn(self):
+        return self.__redis_conn__s
 
     def __read_config_json_from_file__(self):
         try:
@@ -137,16 +173,27 @@ class MySpider:
                 raise NotADirectoryError
 
             # TODO:数据库参数读取
-            redis_confis = self.__config_json__.get('REDIS', None)
-            if redis_confis:
-                config['redis_host'] = redis_confis.get('HOST', 'localhost')
-                config['redis_port'] = redis_confis.get('PORT', '6379')
-                config['redis_db'] = redis_confis.get('db', 0)
-                config['redis_pwd'] = redis_confis.get('PASSWORD', None)
+            redis_configs = self.__config_json__.get('REDIS', None)
+            if redis_configs:
+                config['redis_host'] = redis_configs.get('HOST', 'localhost')
+                config['redis_port'] = redis_configs.get('PORT', '6379')
+                config['redis_db'] = redis_configs.get('DB', 0)
+                config['redis_pwd'] = redis_configs.get('PASSWORD', None)
             else:
                 config['redis_host'] = 'localhost'
                 config['redis_port'] = 6379
                 config['redis_db'] = 0
+
+            backup_redis_configs = self.__config_json__.get('BACKUP_REDIS', None)
+            if backup_redis_configs:
+                config['backup_redis_host'] = backup_redis_configs.get('HOST', 'localhost')
+                config['backup_redis_port'] = backup_redis_configs.get('PORT', '6379')
+                config['backup_redis_db'] = backup_redis_configs.get('DB', 1)
+                config['backup_redis_pwd'] = backup_redis_configs.get('PASSWORD', None)
+            else:
+                config['backup_redis_host'] = 'localhost'
+                config['backup_redis_port'] = 6379
+                config['backup_redis_db'] = 1
 
             config['stop_words_path'] = self.__config_json__.get('STOP_WORDS_PATH', None)
 

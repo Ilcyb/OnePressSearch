@@ -7,6 +7,7 @@ from threading import Thread
 from data_process.my_exception import RedisConnFailedException
 from eprogress import LineProgress, CircleProgress, MultiProgressManager
 from time import sleep
+from spider.utils import if_need_load_progress, load_progress, save_progress, get_progress_file_path, backup
 
 import queue
 import sys
@@ -20,24 +21,36 @@ if  __name__ == '__main__':
     complete_single_queue = queue.Queue()
     mySpider = MySpider(sys.argv[1], crawled_queue, complete_single_queue)
     cleaner = DataCleaner(crawled_queue, cleaned_queue, complete_single_queue)
+    tfidf = TFIDF(cleaned_queue)
 
-    try:
-        redis = _Redis(mySpider.config['redis_host'], mySpider.config['redis_port'],
-                    mySpider.config['redis_db'], mySpider.config['redis_pwd'] or None)
-    except RedisConnFailedException:
-        print('无法连接Redis服务器，请确保Redis服务已经开启且配置填写正确')
-        exit()
-    
-    mySpider.get_redis_conn(redis.getRedisConn())
-    tfidf = TFIDF(cleaned_queue, redis.getRedisConn())
+    if if_need_load_progress(get_progress_file_path()):
+        _redis = load_progress(get_progress_file_path(), crawled_queue, cleaned_queue,
+        complete_single_queue, mySpider, tfidf)
+    else:
+        try:
+            _redis = _Redis(mySpider.config['redis_host'], mySpider.config['redis_port'],
+                        mySpider.config['redis_db'], mySpider.config['redis_pwd'] or None)
+        except RedisConnFailedException:
+            print('无法连接Redis服务器，请确保Redis服务已经开启且配置填写正确')
+            exit()
+        mySpider.set_redis_conn(_redis.getRedisConn())
+        tfidf.set_redis_conn(_redis.getRedisConn())
 
     spider_thread = Thread(target=mySpider.start)
     cleaner_thread = Thread(target=cleaner.work)
     tfidf_thread = Thread(target=tfidf.start)
+    # 备份线程 每5分钟进行一次备份
+    backup_thread = Thread(target=backup, args=(5 ,get_progress_file_path(), crawled_queue,
+        cleaned_queue, complete_single_queue, mySpider, _redis.getRedisConf()), 
+        kwargs={'redis_host':mySpider.config['backup_redis_host'],
+        'redis_port':mySpider.config['backup_redis_port'],
+        'redis_db':mySpider.config['backup_redis_db'],
+        'redis_pwd':mySpider.config['backup_redis_pwd']})
 
     cleaner_thread.start()
     spider_thread.start()
     tfidf_thread.start()
+    backup_thread.start()
 
     spider_thread.join()
     print('\n爬取完成，正在清洗数据')
