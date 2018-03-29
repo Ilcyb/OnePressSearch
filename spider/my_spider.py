@@ -30,7 +30,7 @@ class MySpider:
         self.__file_name_count_lock__ = Lock()
         self.__config_json__ = self.__read_config_json_from_file__()
         self.__config__ = self.__read_config_from_file__()
-        self.__max_queue_size__ = 1500
+        self.__max_queue_size__ = 2000
         self.__not_access_queue__ = queue.PriorityQueue(maxsize=self.__max_queue_size__)
         self.__not_access_queue_name__ = 'naqn'
         self.__queue_full_flag__ = False
@@ -64,7 +64,7 @@ class MySpider:
                 value = [i.decode() for i in value]
                 for item in value:
                     item = item.strip('()').split(',')
-                    priority, url = int(item[0]), item[1].strip('\'')[2:]
+                    priority, url = int(item[0].split('.')[0]), item[1].strip('\'')[2:]
                     self.__not_access_queue__.put((priority, url))
             elif attr in ['__accessed_set__', '__cannot_access_set__']:
                 selfattr = getattr(self, attr)

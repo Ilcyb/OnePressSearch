@@ -30,7 +30,6 @@ if  __name__ == '__main__':
         try:
             _redis = _Redis(mySpider.config['redis_host'], mySpider.config['redis_port'],
                         mySpider.config['redis_db'], mySpider.config['redis_pwd'] or None)
-            print(_redis)
         except RedisConnFailedException:
             print('无法连接Redis服务器，请确保Redis服务已经开启且配置填写正确')
             exit()
@@ -41,7 +40,7 @@ if  __name__ == '__main__':
     cleaner_thread = Thread(target=cleaner.work)
     tfidf_thread = Thread(target=tfidf.start)
     # 备份线程 每5分钟进行一次备份
-    backup_thread = Thread(target=backup, args=(5 ,get_progress_file_path(), crawled_queue,
+    backup_thread = Thread(target=backup, args=(30 ,get_progress_file_path(), crawled_queue,
         cleaned_queue, complete_single_queue, mySpider, _redis.getRedisConf()), 
         kwargs={'redis_host':mySpider.config['backup_redis_host'],
         'redis_port':mySpider.config['backup_redis_port'],
