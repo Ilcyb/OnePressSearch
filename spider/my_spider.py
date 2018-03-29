@@ -56,25 +56,22 @@ class MySpider:
         return dict(__file_name_count__=self.__file_name_count__,
         __config__=self.__config__,__max_queue_size__=self.__max_queue_size__,__not_access_queue__=list(self.__not_access_queue__.queue),
         __not_access_queue_name__=self.__not_access_queue_name__,__queue_full_flag__=self.__queue_full_flag__,
-        __queue_harf_flag__=self.__queue_harf_flag__,__accessed_set__=self.__accessed_set__,__cannot_access_set__=self.__cannot_access_set__)
+        __queue_harf_flag__=self.__queue_harf_flag__,__accessed_set__=list(self.__accessed_set__),__cannot_access_set__=(self.__cannot_access_set__))
 
     def __load_attr__(self, attr_dict):
-        for attr, value in attr_dict:
+        for attr, value in attr_dict.items():
             if attr == '__not_access_queue__':
                 value = [i.decode() for i in value]
                 for item in value:
                     item = item.strip('()').split(',')
-                    priority, url = int(item[0]), item[1].strip('\'')
+                    priority, url = int(item[0]), item[1].strip('\'')[2:]
                     self.__not_access_queue__.put((priority, url))
             elif attr in ['__accessed_set__', '__cannot_access_set__']:
                 selfattr = getattr(self, attr)
                 for item in value:
                     selfattr.add(item.decode())
             elif attr == '__config__':
-                for config_name, config_value in value.items():
-                    config_name = config_name.decode()
-                    config_value = config_value.decode()
-                    self.__config__[config_name] = config_value
+                setattr(self, attr, value)
             elif attr in ['__file_name_count__', '__max_queue_size__']:
                 setattr(self, attr, int(value))
             elif attr in ['__queue_full_flag__', ' __queue_harf_flag__']:

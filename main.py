@@ -30,6 +30,7 @@ if  __name__ == '__main__':
         try:
             _redis = _Redis(mySpider.config['redis_host'], mySpider.config['redis_port'],
                         mySpider.config['redis_db'], mySpider.config['redis_pwd'] or None)
+            print(_redis)
         except RedisConnFailedException:
             print('无法连接Redis服务器，请确保Redis服务已经开启且配置填写正确')
             exit()
@@ -46,6 +47,12 @@ if  __name__ == '__main__':
         'redis_port':mySpider.config['backup_redis_port'],
         'redis_db':mySpider.config['backup_redis_db'],
         'redis_pwd':mySpider.config['backup_redis_pwd']})
+
+    # 设置为守护线程，在主线程结束时结束
+    spider_thread.setDaemon(True)
+    cleaner_thread.setDaemon(True)
+    tfidf_thread.setDaemon(True)
+    backup_thread.setDaemon(True)
 
     cleaner_thread.start()
     spider_thread.start()

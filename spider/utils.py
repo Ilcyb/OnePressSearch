@@ -5,6 +5,8 @@ import re
 import threading
 import os
 import json
+import traceback
+import pickle
 
 from .my_exception import RedisCanNotWork
 from data_process.tf_idf import _Redis
@@ -127,7 +129,7 @@ def save_progress(progress_file, crawled_queue, cleaned_queue,
         # 清除上次保存的进度
         redis_conn.flushdb()
 
-        for key in locals():
+        for key in list(locals()):
             if key in ['crawled_queue_list', 'cleaned_queue_list', 'complete_single_queue_list']:
                 for value in locals()[key]:
                     redis_conn.rpush(key, value)
@@ -138,8 +140,8 @@ def save_progress(progress_file, crawled_queue, cleaned_queue,
                 for item in v:
                     redis_conn.rpush(k, item)
             elif k == '__config__':
-                for config, config_value in v.items():
-                    redis_conn.hset('spider_configs', config, config_value)
+                config_byte = pickle.dumps(v)
+                redis_conn.set('spider_configs', config_byte)
             else:
                 redis_conn.set(k, v)
 
@@ -173,7 +175,7 @@ def load_progress(progress_file, crawled_queue, cleaned_queue, complete_single_q
         
         for redis_list in ['crawled_queue_list', 'cleaned_queue_list', 'complete_single_queue_list']:
             all_item_list = redis_conn.lrange(redis_list, 0, -1)
-            for key in locals():
+            for key in list(locals()):
                 if redis_list[:-5] == key:
                     current_queue = locals()[key]
                     for item in all_item_list:
@@ -185,7 +187,7 @@ def load_progress(progress_file, crawled_queue, cleaned_queue, complete_single_q
             if attr in ['__not_access_queue__', '__accessed_set__', '__cannot_access_set__']:
                 spider_attr_dict[attr] = redis_conn.lrange(attr, 0, -1)
             elif attr == '__config__':
-                spider_attr_dict[attr] = redis_conn.hgetall('spider_configs')
+                spider_attr_dict[attr] = pickle.loads(redis_conn.get('spider_configs'))
             else:
                 spider_attr_dict[attr] = redis_conn.get(attr) # spider的属性的decode交给spider.__load_attr__自己去做
         spider.__load_attr__(spider_attr_dict)
@@ -201,6 +203,7 @@ def load_progress(progress_file, crawled_queue, cleaned_queue, complete_single_q
         print('无法连接进度存储数据库，进度加载失败')
     except Exception as e:
         print('发生了未处理的错误，无法加载程序进度', e)
+        print(traceback.format_exc())
 
 def if_need_load_progress(progress_file):
     try:
