@@ -1,0 +1,24 @@
+.search-div{
+    margin-top: 20px;
+}
+
+.search-head{
+    margin-top: 20px;
+}
+
+.keyword{
+    color: red;
+}
+
+.a-result{
+    margin-bottom: 80px;
+}
+
+.result-title{
+    margin-left: 26%;
+    margin-bottom: 20px;
+}
+
+.result-url{
+    margin-left: 26%;
+}

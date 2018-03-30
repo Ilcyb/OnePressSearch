@@ -1,0 +1,31 @@
+<html>
+
+<head>
+    <title>搜索结果</title>
+    <link rel="stylesheet" href="{{url_for('static',filename='search_result.css')}}">
+    <link rel="stylesheet" href="https://cdn.bootcss.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u"
+        crossorigin="anonymous">
+        <script>
+            window.onload = function(){
+                getSearchResult();
+            }
+        </script>
+</head>
+
+<body>
+    <div class="search-div">
+        <form class="form-horizontal">
+            <div class="col-md-offset-3 col-md-5">
+                <input type="text" class="input-lg form-control" id="search_text" placeholder="搜索一下">
+            </div>
+            <button type="button" class="btn btn-default btn-lg" onclick="search()">搜索一下</button>
+        </form>
+    </div>
+    <div class="search-head row">
+        <p class="col-md-offset-5">
+            <em id='keyword' class="keyword"></em>&nbsp;&nbsp;的搜索结果</p>
+    </div>
+    <script src="{{url_for('static', filename='search_result.js')}}"></script>
+</body>
+
+</html>
