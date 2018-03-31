@@ -8,18 +8,18 @@ from .my_exception import RedisConnFailedException, CantDecodeException, NoTitle
 
 
 class _Redis(object):
-
     def __init__(self, host, port, db, password=None):
         self._host, self._port, self._db, self._password = host, port, db, password
         if password:
-            self._conn = redis.Redis(host=host, port=port, db=db, password=password)
+            self._conn = redis.Redis(
+                host=host, port=port, db=db, password=password)
         else:
-            self._conn = redis.Redis(host=host, port=port, db=db)   
+            self._conn = redis.Redis(host=host, port=port, db=db)
         try:
             self._conn.ping()
         except redis.exceptions.ConnectionError as e:
             raise RedisConnFailedException(str(e))
-    
+
     def getRedisConn(self):
         return self._conn
 
@@ -28,7 +28,6 @@ class _Redis(object):
 
 
 class TFIDF(object):
-
     def __init__(self, input_queue):
         self._input_queue = input_queue
         self._stopWordList()
@@ -37,7 +36,9 @@ class TFIDF(object):
     def set_redis_conn(self, redis_conn):
         self._redis_conn = redis_conn
 
-    def _stopWordList(self, stop_words_path=os.path.join(os.path.dirname(__file__), 'stop_words.txt')):
+    def _stopWordList(self,
+                      stop_words_path=os.path.join(
+                          os.path.dirname(__file__), 'stop_words.txt')):
         self._stop_words_set = set()
         with open(stop_words_path, 'r', encoding='utf-8') as stw_file:
             self._stop_words_set.add(stw_file.readline().strip())
@@ -66,7 +67,8 @@ class TFIDF(object):
                 if coding == 'utf-8':
                     coding = 'gbk'
                 else:
-                    raise CantDecodeException(path + "can't decode by utf-8 and gbk")
+                    raise CantDecodeException(
+                        path + "can't decode by utf-8 and gbk")
             else:
                 return url, title, s
             finally:
@@ -89,21 +91,25 @@ class TFIDF(object):
         for word, count in words_dict.items():
             self._redis_conn.sadd('all_word_list', word)
             if not self._redis_conn.hexists(word, 'url_list'):
-                self._redis_conn.hset(word, 'url_list', word+'_url_list')
-                self._redis_conn.hset(word, 'tfidf_list', word+'_tfidf_list')
-            self._redis_conn.rpush(self._redis_conn.hget(word, 'url_list'), url)
+                self._redis_conn.hset(word, 'url_list', word + '_url_list')
+                self._redis_conn.hset(word, 'tfidf_list', word + '_tfidf_list')
+            self._redis_conn.rpush(
+                self._redis_conn.hget(word, 'url_list'), url)
             tf = count / total
-            self._redis_conn.rpush(self._redis_conn.hget(word, 'tfidf_list'), tf)
+            self._redis_conn.rpush(
+                self._redis_conn.hget(word, 'tfidf_list'), tf)
 
     def _compute_tfidf(self):
         total_words_set = self._redis_conn.smembers('all_word_list')
         total_doc_nums = len(total_words_set)
         for word in total_words_set:
-            the_word_doc_nums = self._redis_conn.llen(self._redis_conn.hget(word, 'url_list')) + 1
-            the_word_idf = log10(total_doc_nums/(the_word_doc_nums+1))
+            the_word_doc_nums = self._redis_conn.llen(
+                self._redis_conn.hget(word, 'url_list')) + 1
+            the_word_idf = log10(total_doc_nums / (the_word_doc_nums + 1))
             the_word_tf_list_name = self._redis_conn.hget(word, 'tfidf_list')
             for index in range(self._redis_conn.llen(the_word_tf_list_name)):
-                the_tf = float(self._redis_conn.lindex(the_word_tf_list_name, index))
+                the_tf = float(
+                    self._redis_conn.lindex(the_word_tf_list_name, index))
                 the_tf_idf = the_word_idf * the_tf
                 self._redis_conn.lset(the_word_tf_list_name, index, the_tf_idf)
 
@@ -114,7 +120,9 @@ class TFIDF(object):
                 if avilable_path == 'mission_complete':
                     break
                 url, title, content = self._read_content(avilable_path)
-                self._write_info_2_redis(*self._get_word_count_dict(self._participle(content)), url, title)
+                self._write_info_2_redis(
+                    *self._get_word_count_dict(self._participle(content)), url,
+                    title)
             except FileNotFoundError:
                 pass
             except CantDecodeException:

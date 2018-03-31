@@ -31,32 +31,47 @@ class MySpider:
         self.__config_json__ = self.__read_config_json_from_file__()
         self.__config__ = self.__read_config_from_file__()
         self.__max_queue_size__ = 2000
-        self.__not_access_queue__ = queue.PriorityQueue(maxsize=self.__max_queue_size__)
+        self.__not_access_queue__ = queue.PriorityQueue(
+            maxsize=self.__max_queue_size__)
         self.__not_access_queue_name__ = 'naqn'
         self.__queue_full_flag__ = False
         self.__queue_harf_flag__ = False
         self.__accessed_set__ = set()
         self.__cannot_access_set__ = set()
         self.__output_queue__ = output_queue
-        self.__headers__ = http_header = {
-            'Connection': 'keep-alive',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
-            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-            'Cache-Control': 'max-age=0',
-            'Referer': 'http://www.baidu.com/',
+        self.__headers__ = {
+            'Connection':
+            'keep-alive',
+            'Accept':
+            'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+            'Accept-Language':
+            'zh-CN,zh;q=0.9,en;q=0.8',
+            'Cache-Control':
+            'max-age=0',
+            'Referer':
+            'http://www.baidu.com/',
         }
         self.__filter_urls_set__ = set()
         self.__url_compile_re__ = re.compile(r'^https?:/{2}\w.+$')
         self.__request_failed_nums__ = 2
         self.__allow_domain_regex_list__ = list()
-        self.__progressbar__ = LineProgress(title='爬取页面', total=self.__config__['number_of_pages_to_crawl'], width=80)
+        self.__progressbar__ = LineProgress(
+            title='爬取页面',
+            total=self.__config__['number_of_pages_to_crawl'],
+            width=80)
         self.__complete_queue__ = complete_queue
 
     def __save_attr__(self):
-        return dict(__file_name_count__=self.__file_name_count__,
-        __config__=self.__config__,__max_queue_size__=self.__max_queue_size__,__not_access_queue__=list(self.__not_access_queue__.queue),
-        __not_access_queue_name__=self.__not_access_queue_name__,__queue_full_flag__=self.__queue_full_flag__,
-        __queue_harf_flag__=self.__queue_harf_flag__,__accessed_set__=list(self.__accessed_set__),__cannot_access_set__=(self.__cannot_access_set__))
+        return dict(
+            __file_name_count__=self.__file_name_count__,
+            __config__=self.__config__,
+            __max_queue_size__=self.__max_queue_size__,
+            __not_access_queue__=list(self.__not_access_queue__.queue),
+            __not_access_queue_name__=self.__not_access_queue_name__,
+            __queue_full_flag__=self.__queue_full_flag__,
+            __queue_harf_flag__=self.__queue_harf_flag__,
+            __accessed_set__=list(self.__accessed_set__),
+            __cannot_access_set__=(self.__cannot_access_set__))
 
     def __load_attr__(self, attr_dict):
         for attr, value in attr_dict.items():
@@ -64,7 +79,8 @@ class MySpider:
                 value = [i.decode() for i in value]
                 for item in value:
                     item = item.strip('()').split(',')
-                    priority, url = int(item[0].split('.')[0]), item[1].strip('\'')[2:]
+                    priority, url = int(
+                        item[0].split('.')[0]), item[1].strip('\'')[2:]
                     self.__not_access_queue__.put((priority, url))
             elif attr in ['__accessed_set__', '__cannot_access_set__']:
                 selfattr = getattr(self, attr)
@@ -113,47 +129,59 @@ class MySpider:
                 raise KeyError('配置文件填写不完整，begin_urls不得为空')
 
             # 允许爬取的域名 Type:list Default:[]
-            config['allow_domains'] = self.__config_json__.get('ALLOW_DOMAINS', [])
+            config['allow_domains'] = self.__config_json__.get(
+                'ALLOW_DOMAINS', [])
 
             # 需要过滤的域名 Type:list Default:[]
-            config['filter_domains'] = self.__config_json__.get('FILTER_DOMAINS', [])
+            config['filter_domains'] = self.__config_json__.get(
+                'FILTER_DOMAINS', [])
 
             # 需要优先爬取的域名 Type:list Default:[]
-            config['priority_domains'] = self.__config_json__.get('PRIORITY_DOMIANS', [])
+            config['priority_domains'] = self.__config_json__.get(
+                'PRIORITY_DOMIANS', [])
 
             # 需要爬取的页面数量 Type:int Default:None
-            config['number_of_pages_to_crawl'] = self.__config_json__.get('NUMBER_OF_PAGES_TO_CRAWL', None)
+            config['number_of_pages_to_crawl'] = self.__config_json__.get(
+                'NUMBER_OF_PAGES_TO_CRAWL', None)
             try:
                 if config['number_of_pages_to_crawl'] is not None:
-                    config['number_of_pages_to_crawl'] = int(config['number_of_pages_to_crawl'])
+                    config['number_of_pages_to_crawl'] = int(
+                        config['number_of_pages_to_crawl'])
                 if config['number_of_pages_to_crawl'] <= 0:
                     raise ValueError
             except ValueError:
                 raise ValueError('配置文件填写错误，NUMBER_OF_PAGES_TO_CRAWL必须为一个正数')
 
             # 爬取每个页面的超时时间 Type:int Default:None
-            config['timeout_of_per_page'] = self.__config_json__.get('TIMEOUT_OF_PER_PAGE', None)
+            config['timeout_of_per_page'] = self.__config_json__.get(
+                'TIMEOUT_OF_PER_PAGE', None)
             try:
                 if config['timeout_of_per_page'] is not None:
-                    config['timeout_of_per_page'] = int(config['timeout_of_per_page'])
+                    config['timeout_of_per_page'] = int(
+                        config['timeout_of_per_page'])
                 if config['timeout_of_per_page'] <= 0:
                     raise ValueError
             except ValueError:
                 raise ValueError('配置文件填写错误，TIMEOUT_OF_PER_PAGE必须为一个正数')
 
             # 是否采用深度优先 Type:boolean Default:False
-            config['is_depth_first'] = self.__config_json__.get('IS_DEPTH_FIRST', False)
+            config['is_depth_first'] = self.__config_json__.get(
+                'IS_DEPTH_FIRST', False)
 
             # 是否采用广度优先 Type:boolean Default:False
-            config['is_breadth_first'] = self.__config_json__.get('IS_BREADTH_FIRST', False)
+            config['is_breadth_first'] = self.__config_json__.get(
+                'IS_BREADTH_FIRST', False)
 
             if config['is_depth_first'] == True and config['is_breadth_first'] == True:
-                raise ValueError('配置文件填写错误，IS_DEPTH_FIRST与IS_BREADTH_FIRST不能同时为True')
+                raise ValueError(
+                    '配置文件填写错误，IS_DEPTH_FIRST与IS_BREADTH_FIRST不能同时为True')
             if config['is_depth_first'] == False and config['is_breadth_first'] == False:
                 config['is_depth_first'] = True
 
             # 线程池中线程数量 Type:int Default:机器CPU核心数*4
-            config['threadpool_size'] = self.__config_json__.get('THREADPOOL_SIZE', cpu_count() * 4)
+            config['threadpool_size'] = self.__config_json__.get(
+                'THREADPOOL_SIZE',
+                cpu_count() * 4)
             try:
                 config['threadpool_size'] = int(config['threadpool_size'])
                 if config['threadpool_size'] <= 0:
@@ -162,8 +190,9 @@ class MySpider:
                 raise ValueError('配置文件填写错误，THREADPOOL_SIZE必须为一个正数')
 
             # 爬取下来的html文件的存储路径 Type:string default:当前工作目录下的html文件夹下
-            config['html_file_storage_path'] = self.__config_json__.get('HTML_FILE_STORAGE_PATH',
-                                                                        os.path.join(os.getcwd(), 'saved_html'))
+            config['html_file_storage_path'] = self.__config_json__.get(
+                'HTML_FILE_STORAGE_PATH',
+                os.path.join(os.getcwd(), 'saved_html'))
             if not os.path.exists(config['html_file_storage_path']):
                 os.mkdir(config['html_file_storage_path'])
             if not os.path.isdir(config['html_file_storage_path']):
@@ -181,19 +210,23 @@ class MySpider:
                 config['redis_port'] = 6379
                 config['redis_db'] = 0
 
-            backup_redis_configs = self.__config_json__.get('BACKUP_REDIS', None)
+            backup_redis_configs = self.__config_json__.get(
+                'BACKUP_REDIS', None)
             if backup_redis_configs:
-                config['backup_redis_host'] = backup_redis_configs.get('HOST', 'localhost')
-                config['backup_redis_port'] = backup_redis_configs.get('PORT', '6379')
+                config['backup_redis_host'] = backup_redis_configs.get(
+                    'HOST', 'localhost')
+                config['backup_redis_port'] = backup_redis_configs.get(
+                    'PORT', '6379')
                 config['backup_redis_db'] = backup_redis_configs.get('DB', 1)
-                config['backup_redis_pwd'] = backup_redis_configs.get('PASSWORD', None)
+                config['backup_redis_pwd'] = backup_redis_configs.get(
+                    'PASSWORD', None)
             else:
                 config['backup_redis_host'] = 'localhost'
                 config['backup_redis_port'] = 6379
                 config['backup_redis_db'] = 1
 
-            config['stop_words_path'] = self.__config_json__.get('STOP_WORDS_PATH', None)
-
+            config['stop_words_path'] = self.__config_json__.get(
+                'STOP_WORDS_PATH', None)
 
             return config
 
@@ -213,11 +246,12 @@ class MySpider:
     # 读取允许的urls
     def __read_allow_domain_urls__(self):
         for allow_domain in self.__config__['allow_domains']:
-            self.__allow_domain_regex_list__.append(re.compile('.*' + allow_domain + '.*'))
+            self.__allow_domain_regex_list__.append(
+                re.compile('.*' + allow_domain + '.*'))
 
     # 验证url是否满足allow_domians
     def __verify_url_for_allow_domains__(self, url):
-        if(len(self.__allow_domain_regex_list__) == 0):
+        if (len(self.__allow_domain_regex_list__) == 0):
             return True
         for regx in self.__allow_domain_regex_list__:
             if (regx.match(url)):
@@ -225,13 +259,19 @@ class MySpider:
         return False
 
     # 页面抓取器
-    def __request__(self, url, priority, timeout=20, user_agent=MY_USER_AGENT[randint(0, len(MY_USER_AGENT) - 1)]):
+    def __request__(self,
+                    url,
+                    priority,
+                    timeout=20,
+                    user_agent=MY_USER_AGENT[randint(0,
+                                                     len(MY_USER_AGENT) - 1)]):
         self.__headers__['User-Agent'] = user_agent
         # 请求预设的次数，若失败的次数达到预设的最大次数则将异常抛出
         # 若请求成功则跳出请求循环返回请求结果
         for i in range(self.__request_failed_nums__):
             try:
-                req = requests.get(url, headers=self.__headers__, timeout=timeout)
+                req = requests.get(
+                    url, headers=self.__headers__, timeout=timeout)
                 req.raise_for_status()
             except requests.ConnectionError:
                 if i == self.__request_failed_nums__ - 1:
@@ -294,9 +334,13 @@ class MySpider:
                 standard_url = self.__url_standardizator__(i['href'], url)
                 if self.__url_analyzer__(standard_url):
                     if self.__queue_full_flag__:
-                        put_element_into_sort_set(self.__redis_conn__, self.__not_access_queue_name__, standard_url, priority)
+                        put_element_into_sort_set(
+                            self.__redis_conn__,
+                            self.__not_access_queue_name__, standard_url,
+                            priority)
                     else:
-                        self.__not_access_queue__.put((priority, standard_url), block=False)
+                        self.__not_access_queue__.put(
+                            (priority, standard_url), block=False)
             except queue.Full:
                 self.__queue_full_flag__ = True
             except KeyError:
@@ -316,7 +360,8 @@ class MySpider:
 
     # 线程创造器
     def __thread_creator__(self):
-        return ThreadPoolExecutor(max_workers=self.__config__['threadpool_size'])
+        return ThreadPoolExecutor(
+            max_workers=self.__config__['threadpool_size'])
 
     def start(self):
         # TODO: 将优先队列中的url改为(优先级, url)的元组形式
@@ -328,22 +373,27 @@ class MySpider:
         while True:
             try:
                 url_tuple = self.__not_access_queue__.get()
-                if self.__queue_full_flag__ and self.__not_access_queue__.qsize() < self.__max_queue_size__ / 2:
-                    get_sort_set_from_redis(self.__redis_conn__, self.__not_access_queue_name__,
-                                            int(self.__max_queue_size__ * 0.3), self.__not_access_queue__)
+                if self.__queue_full_flag__ and self.__not_access_queue__.qsize(
+                ) < self.__max_queue_size__ / 2:
+                    get_sort_set_from_redis(self.__redis_conn__,
+                                            self.__not_access_queue_name__,
+                                            int(self.__max_queue_size__ * 0.3),
+                                            self.__not_access_queue__)
                     gc.collect()
                 # 再次验证，以免重复爬取已爬取过的页面
                 if url_tuple[1] in self.__accessed_set__:
                     continue
 
-                future = executor.submit(self.__request__, url_tuple[1], url_tuple[0],
-                                         self.__config__['timeout_of_per_page'])
+                future = executor.submit(
+                    self.__request__, url_tuple[1], url_tuple[0],
+                    self.__config__['timeout_of_per_page'])
                 writed_page = future.result()
 
                 # TODO:存储page
                 self.__file_name_count_lock__.acquire()
-                file_path = os.path.join(self.__config__['html_file_storage_path'],
-                                         str(self.__file_name_count__) + '.html')
+                file_path = os.path.join(
+                    self.__config__['html_file_storage_path'],
+                    str(self.__file_name_count__) + '.html')
                 self.__file_name_count__ += 1
                 self.__file_name_count_lock__.release()
 
@@ -353,12 +403,13 @@ class MySpider:
 
                 self.__output_queue__.put(file_path)
                 self.__accessed_set__.add(url_tuple[1])
-                # print(url_tuple[1], str(url_tuple[0]), 
+                # print(url_tuple[1], str(url_tuple[0]),
                 # str(self.__file_name_count__) + '/' + str(self.__config__['number_of_pages_to_crawl']))
                 self.__progressbar__.update(self.__file_name_count__)
 
                 # 爬取完成判断
-                if self.__file_name_count__ == self.__config__['number_of_pages_to_crawl']:
+                if self.__file_name_count__ == self.__config__[
+                        'number_of_pages_to_crawl']:
                     # raise CrawlCompletedException()
                     self.__output_queue__.put('mission_complete')
                     self.__progressbar__.finish()

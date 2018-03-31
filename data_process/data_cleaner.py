@@ -3,17 +3,18 @@ author: ilcyb
 将爬取下来的html文件中的冗余信息去除
 """
 
-
 from bs4 import BeautifulSoup
 from .cx_extractor import CxExtractor
 from .my_exception import CantDecodeException, CleanFailedException
 from os import remove
+
 
 class DataCleaner(object):
     """
     数据清理类
     将html文件中的无用信息清理掉，留下有用的标题、关键词、正文
     """
+
     def __init__(self, input_queue, output_queue, complete_queue):
         self.__input_queue__ = input_queue
         self.__output_queue__ = output_queue
@@ -54,7 +55,8 @@ class DataCleaner(object):
         except Exception:
             pass
         try:
-            return ((title or '') ,(' ' + keywords or ' ') + (' ' + description or ' '))
+            return ((title or ''),
+                    (' ' + keywords or ' ') + (' ' + description or ' '))
         except Exception:
             return ('', '')
 
