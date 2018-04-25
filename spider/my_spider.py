@@ -194,7 +194,7 @@ class MySpider:
                 'HTML_FILE_STORAGE_PATH',
                 os.path.join(os.getcwd(), 'saved_html'))
             if not os.path.exists(config['html_file_storage_path']):
-                os.mkdir(config['html_file_storage_path'])
+                os.makedirs(config['html_file_storage_path'])
             if not os.path.isdir(config['html_file_storage_path']):
                 raise NotADirectoryError
 
