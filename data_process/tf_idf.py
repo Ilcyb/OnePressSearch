@@ -4,7 +4,10 @@ import redis
 import os
 
 from math import log10
-from .my_exception import RedisConnFailedException, CantDecodeException, NoTitleOrNoUrlException
+from .my_exception import RedisConnFailedException, CantDecodeException, \
+                        NoTitleOrNoUrlException, MySQLConnFailedException, DuplicateUrlException
+import MySQLdb
+import _mysql_exceptions
 
 
 class _Redis(object):
@@ -27,6 +30,26 @@ class _Redis(object):
         return [self._host, self._port, self._db, self._password]
 
 
+class _MySQL(object):
+    def __init__(self, host, port, db, user, password):
+        self._host, self._port, self._db, self._user, self._password = \
+        host, int(port), db, user, password
+        try:
+            self._db = MySQLdb.connect(host=host, port=int(port), db=db, user=user, passwd=password, charset='utf8')
+        except _mysql_exceptions.OperationalError as e:
+            raise MySQLConnFailedException(str(e))
+
+    def _re_open_connect(self):
+        self._db.close()
+        self._db = MySQLdb.connect(host=self._host, port=int(self._port),
+         db=self._db, user=self._user, passwd=self._password)
+    
+    def getMySQLConn(self):
+        return self._db
+
+    def getMySQLConf(self):
+        return [self._host, self._port, self._db, self._user, self._password]
+
 class TFIDF(object):
     def __init__(self, input_queue):
         self._input_queue = input_queue
@@ -35,6 +58,9 @@ class TFIDF(object):
 
     def set_redis_conn(self, redis_conn):
         self._redis_conn = redis_conn
+
+    def set_mysql_conn(self, mysql_conn):
+        self._mysql_conn = mysql_conn
 
     def _stopWordList(self,
                       stop_words_path=os.path.join(
@@ -113,6 +139,25 @@ class TFIDF(object):
                 the_tf_idf = the_word_idf * the_tf
                 self._redis_conn.lset(the_word_tf_list_name, index, the_tf_idf)
 
+    def _write_content_2_mysql(self, url, content):
+        from spider.utils import mymd5
+        try:
+            db_conn = self._mysql_conn.getMySQLConn()
+            db_conn.begin()
+            cur = db_conn.cursor()
+            md5 = mymd5(url)
+            if(cur.execute("""select id from url_hash where url_hash = %s""", (md5,)) != 0):
+                raise DuplicateUrlException()
+            cur.execute("""insert into url_hash(url_hash, content) values(%s, %s)""",
+                        (md5, content))
+        except _mysql_exceptions.OperationalError as e:
+            db_conn.rollback()
+            raise e
+        else:
+            db_conn.commit()
+        finally:
+            cur.close()
+
     def start(self):
         while True:
             try:
@@ -120,6 +165,7 @@ class TFIDF(object):
                 if avilable_path == 'mission_complete':
                     break
                 url, title, content = self._read_content(avilable_path)
+                self._write_content_2_mysql(url, content if len(content.strip()) != 0 else title)
                 self._write_info_2_redis(
                     *self._get_word_count_dict(self._participle(content)), url,
                     title)
@@ -131,7 +177,11 @@ class TFIDF(object):
                 pass
             except redis.exceptions.ConnectionError:
                 print('与redis的连接中断')
+            except _mysql_exceptions.OperationalError as e:
+                print(e)
             except Exception as e:
+                from traceback import print_exc
+                print_exc()
                 print('发生了未经处理的错误', e)
             finally:
                 self._input_queue.task_done()

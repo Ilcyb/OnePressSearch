@@ -7,9 +7,10 @@ import os
 import json
 import traceback
 import pickle
+import hashlib
 
 from .my_exception import RedisCanNotWork
-from data_process.tf_idf import _Redis
+from data_process.tf_idf import _Redis, _MySQL
 from time import sleep
 
 
@@ -126,7 +127,7 @@ def get_progress_file_path():
 
 
 def save_progress(progress_file, crawled_queue, cleaned_queue,
-                  complete_single_queue, spider, redis_conf, **kwargs):
+                  complete_single_queue, spider, redis_conf, mysql_conf, **kwargs):
     try:
         redis_conn = _Redis(
             host=kwargs['redis_host'],
@@ -166,6 +167,9 @@ def save_progress(progress_file, crawled_queue, cleaned_queue,
 
         for conf in redis_conf:
             redis_conn.rpush('redis_conf', conf)
+
+        for conf in mysql_conf:
+            redis_conn.rpush('mysql_conf', conf)
 
         progress_json = {
             'progress': True,
@@ -229,9 +233,16 @@ def load_progress(progress_file, crawled_queue, cleaned_queue,
         ]
         old_redis = _Redis(redis_conf[0], int(redis_conf[1]), int(
             redis_conf[2]), None if redis_conf[3] == 'None' else redis_conf[3])
+
+        mysql_conf = [
+            conf.decode() for conf in redis_conn.lrange('mysql_conf', 0, -1)
+        ]
+        old_mysql = _MySQL(mysql_conf[0], int(mysql_conf[1]), mysql_conf[2], mysql_conf[3], mysql_conf[4])
+        
         spider.set_redis_conn(old_redis.getRedisConn())
         tfidf.set_redis_conn(old_redis.getRedisConn())
-        return old_redis
+        tfidf.set_redis_conn(old_mysql.getMySQLConn())
+        return old_redis, old_mysql
 
     except redis.exceptions.ConnectionError:
         print('无法连接进度存储数据库，进度加载失败')
@@ -255,8 +266,15 @@ def if_need_load_progress(progress_file):
 
 
 def backup(minute, progress_file, crawled_queue, cleaned_queue,
-           complete_single_queue, spider, redis_conf, **kwargs):
+           complete_single_queue, spider, redis_conf, mysql_conf, **kwargs):
     while True:
         sleep(minute * 60)
         save_progress(progress_file, crawled_queue, cleaned_queue,
-                      complete_single_queue, spider, redis_conf, **kwargs)
+                      complete_single_queue, spider, redis_conf, mysql_conf **kwargs)
+
+
+def mymd5(str):
+    str = str.encode()
+    md5 = hashlib.md5()
+    md5.update(str)
+    return md5.hexdigest()

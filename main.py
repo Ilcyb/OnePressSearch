@@ -2,7 +2,7 @@
 from spider import MySpider
 from spider import CrawlCompletedException
 from data_process import DataCleaner
-from data_process.tf_idf import _Redis, TFIDF
+from data_process.tf_idf import _Redis, _MySQL, TFIDF
 from threading import Thread
 from data_process.my_exception import RedisConnFailedException
 from eprogress import LineProgress, CircleProgress, MultiProgressManager
@@ -24,7 +24,7 @@ if __name__ == '__main__':
     tfidf = TFIDF(cleaned_queue)
 
     if if_need_load_progress(get_progress_file_path()):
-        _redis = load_progress(get_progress_file_path(), crawled_queue,
+        _redis, _mysql = load_progress(get_progress_file_path(), crawled_queue,
                                cleaned_queue, complete_single_queue, mySpider,
                                tfidf)
     else:
@@ -33,11 +33,17 @@ if __name__ == '__main__':
                             mySpider.config['redis_port'],
                             mySpider.config['redis_db'],
                             mySpider.config['redis_pwd'] or None)
+            _mysql = _MySQL(mySpider.config['mysql_host'],
+                            mySpider.config['mysql_port'],
+                            mySpider.config['mysql_db'],
+                            mySpider.config['mysql_user'],
+                            mySpider.config['mysql_pwd'])
         except RedisConnFailedException:
             print('无法连接Redis服务器，请确保Redis服务已经开启且配置填写正确')
             exit()
         mySpider.set_redis_conn(_redis.getRedisConn())
         tfidf.set_redis_conn(_redis.getRedisConn())
+        tfidf.set_mysql_conn(_mysql)
 
     spider_thread = Thread(target=mySpider.start)
     cleaner_thread = Thread(target=cleaner.work)
@@ -46,7 +52,7 @@ if __name__ == '__main__':
     backup_thread = Thread(
         target=backup,
         args=(30, get_progress_file_path(), crawled_queue, cleaned_queue,
-              complete_single_queue, mySpider, _redis.getRedisConf()),
+              complete_single_queue, mySpider, _redis.getRedisConf(), _mysql.getMySQLConf()),
         kwargs={
             'redis_host': mySpider.config['backup_redis_host'],
             'redis_port': mySpider.config['backup_redis_port'],

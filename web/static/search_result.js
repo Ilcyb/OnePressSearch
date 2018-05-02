@@ -32,11 +32,17 @@ function getSearchResult(){
                     var result_title_a = document.createElement('a');
                     result_title_a.href = result['urls'][i][0];
                     result_title_a.innerText = result['urls'][i][1];
+
+                    var result_content_p = document.createElement('p');
+                    result_content_p.className = 'result-content'
+                    result_content_p.innerHTML = red_keyword(result['urls'][i][2], result['keyword_list']);
+
                     var result_url = document.createElement('h4');
                     result_url.className = 'result-url';
                     result_url.innerText = result['urls'][i][0];
                     result_title.appendChild(result_title_a);
                     a_search.appendChild(result_title);
+                    a_search.appendChild(result_content_p);
                     a_search.appendChild(result_url);
                     search_result.appendChild(a_search);
                 }
@@ -44,4 +50,23 @@ function getSearchResult(){
             }
         }
     }
+}
+
+function insert(str,flg,sn){
+    var start = str.substr(0,sn);
+    var end = str.substr(sn,str.length);
+      var newstr = start+flg+end;
+    return newstr;
+}
+
+function red_keyword(content, keywords){
+    for(var i=0;i<keywords.length;i++){
+        var begin = content.indexOf(keywords[i]);
+        if(begin == -1)
+            continue;
+        end = begin + keywords[i].length + 22;
+        content = insert(content, "<span class='keyword'>", begin);
+        content = insert(content, "</span>", end);
+    }
+    return content;
 }

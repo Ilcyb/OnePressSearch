@@ -225,6 +225,16 @@ class MySpider:
                 config['backup_redis_port'] = 6379
                 config['backup_redis_db'] = 1
 
+            mysql_configs = self.__config_json__.get('MYSQL', None)
+            if mysql_configs:
+                config['mysql_host'] = mysql_configs.get('HOST', 'localhost')
+                config['mysql_port'] = mysql_configs.get('PORT', '3306')
+                config['mysql_user'] = mysql_configs.get('USER', 'root')
+                config['mysql_pwd'] = mysql_configs.get('PASSWORD', None)
+                config['mysql_db'] = mysql_configs.get('DB', 'search_engine')
+            else:
+                raise KeyError('缺少MySQL配置参数')
+
             config['stop_words_path'] = self.__config_json__.get(
                 'STOP_WORDS_PATH', None)
 

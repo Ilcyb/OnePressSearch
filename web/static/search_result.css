@@ -1,24 +1,38 @@
-.search-div{
+.search-div {
     margin-top: 20px;
 }
 
-.search-head{
+.search-head {
     margin-top: 20px;
 }
 
-.keyword{
+.keyword {
     color: red;
 }
 
-.a-result{
+.a-result {
     margin-bottom: 80px;
 }
 
-.result-title{
-    margin-left: 26%;
+.result-title {
+    margin-left: 15%;
     margin-bottom: 20px;
 }
 
-.result-url{
-    margin-left: 26%;
+.result-content {
+    margin-left: 15%;
+    width: 800px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+}
+
+.result-url {
+    margin-left: 15%;
+}
+
+.keyword {
+    color: red;
 }

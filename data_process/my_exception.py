@@ -12,3 +12,9 @@ class RedisConnFailedException(Exception):
 
 class NoTitleOrNoUrlException(Exception):
     pass
+
+class MySQLConnFailedException(Exception):
+    pass
+
+class DuplicateUrlException(Exception):
+    pass
